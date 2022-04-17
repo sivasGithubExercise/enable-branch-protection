@@ -116,11 +116,11 @@ With the dependencies installed, you can [start the server](#Start-the-server).
     ```pem
     PRIVATE_KEY="-----BEGIN RSA PRIVATE KEY-----
     ...
-    HkVN9...
+    MIIEowIBAA...
     ...
     -----END RSA PRIVATE KEY-----"
-    GITHUB_APP_IDENTIFIER=12345
-    GITHUB_WEBHOOK_SECRET=your-webhook-secret
+    GITHUB_APP_IDENTIFIER=<<Your App Id>>
+    GITHUB_WEBHOOK_SECRET=<<your-webhook-secret>>
     ```
 
 ## Start the server
