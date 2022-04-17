@@ -28,7 +28,7 @@ set :bind, '0.0.0.0'
 # Have fun!
 #
 
-class GHAapp < Sinatra::Application
+class GHApp < Sinatra::Application
 
   # Expects that the private key in PEM format. Converts the newlines
   PRIVATE_KEY = OpenSSL::PKey::RSA.new(ENV['GITHUB_PRIVATE_KEY'].gsub('\n', "\n"))
@@ -57,20 +57,88 @@ class GHAapp < Sinatra::Application
 
 
   post '/event_handler' do
-
-    # # # # # # # # # # # #
-    # ADD YOUR CODE HERE  #
-    # # # # # # # # # # # #
+   #Get the GitHub WebHook event to process requried events 
+    case request.env['HTTP_X_GITHUB_EVENT']
+      #When a pull requst is created for a new file push
+      when 'pull_request'
+        if @payload['action'].match?('opened')
+          enable_branch_protection(@payload)
+          notify_user(@payload)
+        end
+      #Handles when a new repo is created in the given organiztaion  
+      when 'repository'
+        if @payload['action'].match?('created')
+          enable_branch_protection(@payload)
+          notify_user(@payload)
+        end
+      #Handles all the repos in the current organization when this app is installed.
+      when 'installation'
+        if @payload['action'].match?('created')
+          enable_branch_protection(@payload)
+          notify_user(@payload)
+        end         
+    end
 
     200 # success status
   end
 
 
   helpers do
+    # Open an issue to notify the user of branch protection rules
+    def notify_user(payload)
+      username = payload['sender']['login']
+      help_url = 'https://help.github.com/en/articles/about-protected-branches'
+      issue_title = 'Default Branch Protected 🔐'
+      issue_body = <<~BODY
+        @#{username}: branch protection rules have been added to the Master branch.
+        - Collaborators cannot force push to the protected branch or delete the branch
+        - All commits must be made to a non-protected branch and submitted via a pull request
+        - There must be least 2 approving reviews and no changes requested before a PR can be merged
+        \n **Note:** All configured restrictions are enforced for administrators.
+        \n You can learn more about protected branches here: [About protected branches - GitHub Help](#{help_url})
+      BODY
+      logger.debug 'Creating a new issue for automatic branch protection'
+      @installation_client.create_issue(@repo, issue_title, issue_body)
+    end
 
-    # # # # # # # # # # # # # # # # #
-    # ADD YOUR HELPER METHODS HERE  #
-    # # # # # # # # # # # # # # # # #
+    def protect_branch(repo_name)
+      #if the branch is not protected already then protect the branch
+      if (@installation_client.branch_protection(repo_name, 'master').nil?)
+        logger.debug "----enabling branch protection for the repo #{repo_name}"
+        options = {
+          # This header is necessary for beta access to the branch_protection API
+          # See https://developer.github.com/v3/repos/branches/#update-branch-protection
+          accept: 'application/vnd.github.luke-cage-preview+json',
+          # Require at least two approving reviews on a pull request before merging
+          required_pull_request_reviews: { required_approving_review_count: 2 },
+          # Enforce all configured restrictions for administrators
+          enforce_admins: true
+        }
+        @installation_client.protect_branch(repo_name, 'master', options)
+      end
+    end
+
+    # When an issue is opened, add a label
+    def enable_branch_protection(payload)
+      logger.debug "----enable_branch_protection 0--->    repos #{@payload['repositories']}"
+      if(!@payload['repositories'].nil?)     
+        repos = @payload['repositories']
+        for repo_name in repos
+          logger.debug "----    repos #{repo_name['full_name']}"
+          # Sleep for half a sec, in case if default branch creation is delayed for some reason
+          sleep(0.5) 
+          protect_branch(repo_name['full_name']) unless repo_name['private'] == true
+        end
+
+      else
+        @repo = payload['repository']['full_name']
+        logger.debug "----enable_branch_protection 1--->    repo name #{@repo}"
+        # Sleep for half a sec, in case if default branch creation is delayed for some reason
+        sleep(0.5) 
+        # Protect the default branch if its not a private repo
+        protect_branch(@repo) unless payload['repository']['private'] == true
+      end  
+    end
 
     # Saves the raw payload and converts the payload to JSON format
     def get_payload_request(request)
@@ -79,8 +147,10 @@ class GHAapp < Sinatra::Application
       request.body.rewind
       # The raw text of the body is required for webhook signature verification
       @payload_raw = request.body.read
+      #logger.debug "---- received #{@payload_raw}"
       begin
         @payload = JSON.parse @payload_raw
+        #logger.debug "---- received #{@payload}"
       rescue => e
         fail  "Invalid JSON (#{e}): #{@payload_raw}"
       end
@@ -140,7 +210,6 @@ class GHAapp < Sinatra::Application
       logger.debug "---- received event #{request.env['HTTP_X_GITHUB_EVENT']}"
       logger.debug "----    action #{@payload['action']}" unless @payload['action'].nil?
     end
-
   end
 
   # Finally some logic to let us run this server directly from the command line,

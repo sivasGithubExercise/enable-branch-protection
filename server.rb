@@ -10,10 +10,27 @@ require 'logger'      # Logs debug statements
 set :port, 3000
 set :bind, '0.0.0.0'
 
-class GHAapp < Sinatra::Application
 
-  # Converts the newlines. Expects that the private key has been set as an
-  # environment variable in PEM format.
+# This is template code to create a GitHub App server.
+# You can read more about GitHub Apps here: # https://developer.github.com/apps/
+#
+# On its own, this app does absolutely nothing, except that it can be installed.
+# It's up to you to add functionality!
+# You can check out one example in advanced_server.rb.
+#
+# This code is a Sinatra app, for two reasons:
+#   1. Because the app will require a landing page for installation.
+#   2. To easily handle webhook events.
+#
+# Of course, not all apps need to receive and process events!
+# Feel free to rip out the event handling code if you don't need it.
+#
+# Have fun!
+#
+
+class GHApp < Sinatra::Application
+
+  # Expects that the private key in PEM format. Converts the newlines
   PRIVATE_KEY = OpenSSL::PKey::RSA.new(ENV['GITHUB_PRIVATE_KEY'].gsub('\n', "\n"))
 
   # Your registered app must have a secret set. The secret is used to verify
@@ -29,7 +46,7 @@ class GHAapp < Sinatra::Application
   end
 
 
-  # Executed before each request to the `/event_handler` route
+  # Before each request to the `/event_handler` route
   before '/event_handler' do
     get_payload_request(request)
     verify_webhook_signature
@@ -40,12 +57,26 @@ class GHAapp < Sinatra::Application
 
 
   post '/event_handler' do
-
+   #Get the GitHub WebHook event to process requried events 
     case request.env['HTTP_X_GITHUB_EVENT']
-    when 'issues'
-      if @payload['action'] === 'opened'
-        handle_issue_opened_event(@payload)
-      end
+      #When a pull requst is created for a new file push
+      when 'pull_request'
+        if @payload['action'].match?('opened')
+          enable_branch_protection(@payload)
+          notify_user(@payload)
+        end
+      #Handles when a new repo is created in the given organiztaion  
+      when 'repository'
+        if @payload['action'].match?('created')
+          enable_branch_protection(@payload)
+          notify_user(@payload)
+        end
+      #Handles all the repos in the current organization when this app is installed.
+      when 'installation'
+        if @payload['action'].match?('created')
+          enable_branch_protection(@payload)
+          notify_user(@payload)
+        end         
     end
 
     200 # success status
@@ -53,12 +84,58 @@ class GHAapp < Sinatra::Application
 
 
   helpers do
-
-    # When an issue is opened, add a label
-    def handle_issue_opened_event(payload)
-      repo = payload['repository']['full_name']
-      issue_number = payload['issue']['number']
-      @installation_client.add_labels_to_an_issue(repo, issue_number, ['needs-response'])
+    # Open an issue to notify the user of branch protection rules
+    def notify_user(payload)
+      username = payload['sender']['login']
+      help_url = 'https://help.github.com/en/articles/about-protected-branches'
+      issue_title = 'Default Branch Protected 🔐'
+      issue_body = <<~BODY
+        @#{username}: branch protection rules have been added to the Master branch.
+        - Collaborators cannot force push to the protected branch or delete the branch
+        - All commits must be made to a non-protected branch and submitted via a pull request
+        - There must be least 2 approving reviews and no changes requested before a PR can be merged
+        \n **Note:** All configured restrictions are enforced for administrators.
+        \n You can learn more about protected branches here: [About protected branches - GitHub Help](#{help_url})
+      BODY
+      logger.debug 'Creating a new issue for automatic branch protection'
+      @installation_client.create_issue(@repo, issue_title, issue_body)
+    end
+    # Protects the master branch ( assumption made here as we will not get the default branch name in the payload for installation event) 
+    def protect_branch(repo_name)
+      #if the branch is not protected already then protect the branch
+      if (@installation_client.branch_protection(repo_name, 'master').nil?)
+        logger.debug "----enabling branch protection for the repo #{repo_name}"
+        options = {
+          # This header is necessary for beta access to the branch_protection API
+          # See https://developer.github.com/v3/repos/branches/#update-branch-protection
+          accept: 'application/vnd.github.luke-cage-preview+json',
+          # Require at least two approving reviews on a pull request before merging
+          required_pull_request_reviews: { required_approving_review_count: 2 },
+          # Enforce all configured restrictions for administrators
+          enforce_admins: true
+        }
+        @installation_client.protect_branch(repo_name, 'master', options)
+      end
+    end
+    # Handles when an app is installed in an org, or a repo is created or a pull request is created
+    # Invokes protect_branch method to protect master branch 
+    def enable_branch_protection(payload)
+      logger.debug "----enable_branch_protection 0--->    repos #{@payload['repositories']}"
+      # Get the list of repos for this org. When App is installed
+      if(!@payload['repositories'].nil?)     
+        repos = @payload['repositories']
+        for repo_name in repos
+          logger.debug "----    repos #{repo_name['full_name']}"
+          protect_branch(repo_name['full_name']) unless repo_name['private'] == true
+        end
+      else
+        @repo = payload['repository']['full_name']  # When a new repo or a pull_request is created
+        logger.debug "----enable_branch_protection 1--->    repo name #{@repo}"
+        # Sleep for half a sec, in case if default branch creation is delayed for some reason
+        sleep(0.5) 
+        # Protect the default branch if its not a private repo
+        protect_branch(@repo) unless payload['repository']['private'] == true
+      end  
     end
 
     # Saves the raw payload and converts the payload to JSON format
@@ -68,8 +145,10 @@ class GHAapp < Sinatra::Application
       request.body.rewind
       # The raw text of the body is required for webhook signature verification
       @payload_raw = request.body.read
+      #logger.debug "---- received #{@payload_raw}"
       begin
         @payload = JSON.parse @payload_raw
+        #logger.debug "---- received #{@payload}"
       rescue => e
         fail  "Invalid JSON (#{e}): #{@payload_raw}"
       end
@@ -78,7 +157,7 @@ class GHAapp < Sinatra::Application
     # Instantiate an Octokit client authenticated as a GitHub App.
     # GitHub App authentication requires that you construct a
     # JWT (https://jwt.io/introduction/) signed with the app's private key,
-    # so GitHub can be sure that it came from the app and was not altered by
+    # so GitHub can be sure that it came from the app and wasn't alterered by
     # a malicious third party.
     def authenticate_app
       payload = {
@@ -129,7 +208,6 @@ class GHAapp < Sinatra::Application
       logger.debug "---- received event #{request.env['HTTP_X_GITHUB_EVENT']}"
       logger.debug "----    action #{@payload['action']}" unless @payload['action'].nil?
     end
-
   end
 
   # Finally some logic to let us run this server directly from the command line,
