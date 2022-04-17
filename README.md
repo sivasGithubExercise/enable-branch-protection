@@ -88,7 +88,7 @@ Now it's time to install the app. From your app's settings page, do the followin
 Run the following command to clone this repository:
 
 ```sh
-git clone https://github.com/parkerbxyz/default-branch-protector.git
+git clone https://github.com/shivaraman10/enable-branch-protection.git
 ```
 
 Install dependencies by running the following command from the project directory:
@@ -142,13 +142,7 @@ The web service should now be running and watching for new repositories to be cr
 When you create a new repository in your organization, you should see some output in the Terminal tab where you started `server.rb` that looks something like this:
 
 ```sh-session
-D, [2019-05-27T16:59:24.136072 #56585] DEBUG -- : ---- received event repository
-D, [2019-05-27T16:59:24.136107 #56585] DEBUG -- : ----    action created
-D, [2019-05-27T16:59:25.351392 #56585] DEBUG -- : Protecting default branch
-D, [2019-05-27T16:59:25.739671 #56585] DEBUG -- : Creating a new issue
-140.82.115.69 - - [27/May/2019:16:59:26 -0400] "POST /event_handler HTTP/1.1" 200 - 2.4251
-127.0.0.1 - - [27/May/2019:16:59:24 EDT] "POST /event_handler HTTP/1.1" 200 0
-- -> /event_handler
+
 ```
 
 This means your app is running on the server as expected. 🙌
