@@ -103,20 +103,20 @@ class GHApp < Sinatra::Application
     end
     
     # Protects the master branch ( assumption made here as we will not get the default branch name in the payload for installation event) 
-    def protect_branch(repo_name)
+    def protect_branch(repo_name, master_branch)
       #if the branch is not protected already then protect the branch
-      if (@installation_client.branch_protection(repo_name, 'master').nil?)
+      if (@installation_client.branch_protection(repo_name, master_branch).nil?)
         logger.debug "----enabling branch protection for the repo #{repo_name}"
         options = {
           # This header is necessary for beta access to the branch_protection API
           # See https://developer.github.com/v3/repos/branches/#update-branch-protection
           accept: 'application/vnd.github.luke-cage-preview+json',
           # Require at least two approving reviews on a pull request before merging
-          required_pull_request_reviews: { required_approving_review_count: 2 },
+          required_pull_request_reviews: { required_approving_review_count: 1 },
           # Enforce all configured restrictions for administrators
           enforce_admins: true
         }
-        @installation_client.protect_branch(repo_name, 'master', options)
+        @installation_client.protect_branch(repo_name, master_branch, options)
       end
     end
 
@@ -129,15 +129,16 @@ class GHApp < Sinatra::Application
         repos = @payload['repositories']
         for repo_name in repos
           logger.debug "----    repos #{repo_name['full_name']}"
-          protect_branch(repo_name['full_name']) unless repo_name['private'] == true
+          protect_branch(repo_name['full_name'],'master') unless repo_name['private'] == true
         end
       else
         @repo = payload['repository']['full_name']  # When a new repo or a pull_request is created
+        @branch = payload['repository']['default_branch']  # When a new repo or a pull_request is created
         logger.debug "----enable_branch_protection 1--->    repo name #{@repo}"
         # Sleep for half a sec, in case if default branch creation is delayed for some reason
         sleep(0.5) 
         # Protect the default branch if its not a private repo
-        protect_branch(@repo) unless payload['repository']['private'] == true
+        protect_branch(@repo,@branch) unless payload['repository']['private'] == true
       end  
     end
 
