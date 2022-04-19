@@ -1,9 +1,9 @@
 Adapted from [github-developer/using-the-github-api-in-your-app](https://github.com/github-developer/using-the-github-api-in-your-app).
 
-This is an example GitHub App that automates the protection of the default branch upon creation of new repositories within a GitHub organization. The creator of the new repository will be notified with an [@mention](https://help.github.com/en/articles/basic-writing-and-formatting-syntax#mentioning-people-and-teams) in an issue within the repository that outlines the protections that were added.
+This is an example GitHub App that automates the protection of the default branch upon creation of new repositories within a GitHub organization. This app will also protect the default_branch (Need to adjust the code if the default_brahcn is named other than 'master') of a specific GitHub organization upon installation.The creator of the new repository will be notified with an [@mention](https://help.github.com/en/articles/basic-writing-and-formatting-syntax#mentioning-people-and-teams) in an issue within the repository that outlines the protections that were added.
 
 Scenarios Covered:
-1. When this app is intalled on an organization, all existing unprotected repo's default branchs are enabled protection
+1. When this app is intalled on an organization, all existing unprotected repo's default branchs are enabled protection  (Need to adjust the code if the default_brahcn is named other than 'master')
 1. When a new repo is created, that new repo default branches are protected
 1. When a new file is pushed 
 
@@ -149,6 +149,8 @@ This means your app is running on the server as expected. 🙌
 
 If you don't see the output, make sure Smee is running correctly in another Terminal tab.
 
+Also enhanced version of this server to handle App installation event and new repo/file creation event in `server_refined.rb`. You can run that using `ruby server_refined.rb` 
+
 ## Usage
 
 You can add, remove, or modify the branch protection rules by changing the parameters inside the `options` array in the `protect_branch` helper method:
@@ -203,6 +205,7 @@ If you run into any problems, check out the Troubleshooting section in the "[Set
 
 - [Setting up your development environment | GitHub Developer Guide](https://developer.github.com/apps/quickstart-guides/setting-up-your-development-environment/)
 - [Using the GitHub API in your app | GitHub Developer Guide](https://developer.github.com/apps/quickstart-guides/using-the-github-api-in-your-app/)
+- [Using the Octakit library API in your app | Octakit Developer Guide](hhttps://octokit.github.io/octokit.rb/Octokit/Client/Repositories.html#all_repositories-instance_method)
 - [Branches | GitHub Developer Guide](https://developer.github.com/v3/repos/branches/#update-branch-protection)
 - [github-developer/using-the-github-api-in-your-app](https://github.com/github-developer/using-the-github-api-in-your-app)
 - <https://octokit.github.io/octokit.rb/Octokit/Client.html>
