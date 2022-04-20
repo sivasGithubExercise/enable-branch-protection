@@ -205,7 +205,7 @@ If you run into any problems, check out the Troubleshooting section in the "[Set
 
 - [Setting up your development environment | GitHub Developer Guide](https://developer.github.com/apps/quickstart-guides/setting-up-your-development-environment/)
 - [Using the GitHub API in your app | GitHub Developer Guide](https://developer.github.com/apps/quickstart-guides/using-the-github-api-in-your-app/)
-- [Using the Octakit library API in your app | Octakit Developer Guide](hhttps://octokit.github.io/octokit.rb/Octokit/Client/Repositories.html#all_repositories-instance_method)
 - [Branches | GitHub Developer Guide](https://developer.github.com/v3/repos/branches/#update-branch-protection)
 - [github-developer/using-the-github-api-in-your-app](https://github.com/github-developer/using-the-github-api-in-your-app)
-- <https://octokit.github.io/octokit.rb/Octokit/Client.html>
+- [Using the Octokit library API in your app | Octokit Developer Guide](https://octokit.github.io/octokit.rb/Octokit/Client/Repositories.html#all_repositories-instance_method)
+- [Using the Octokit library API in your app | Octokit Client library](https://octokit.github.io/octokit.rb/Octokit/Client.html)
