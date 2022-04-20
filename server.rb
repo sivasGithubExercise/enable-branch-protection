@@ -123,7 +123,6 @@ class GHApp < Sinatra::Application
     # Handles when an app is installed in an org, or a repo is created or a pull request is created
     # Invokes protect_branch method to protect master branch 
     def enable_branch_protection(payload)
-      logger.debug "----enable_branch_protection 0--->    repos #{@payload['repositories']}"
       # Get the list of repos for this org. When App is installed
       if(!@payload['repositories'].nil?)     
         repos = @payload['repositories']
@@ -133,7 +132,6 @@ class GHApp < Sinatra::Application
         end
       else
         @repo = payload['repository']['full_name']  # When a new repo or a pull_request is created
-        logger.debug "----enable_branch_protection 1--->    repo name #{@repo}"
         # Sleep for half a sec, in case if default branch creation is delayed for some reason
         sleep(0.5) 
         # Protect the default branch if its not a private repo
